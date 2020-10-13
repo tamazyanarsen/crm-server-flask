@@ -1,6 +1,12 @@
 import flask
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine('sqlite:///:memory:', echo=True)
+Session = sessionmaker(bind=engine)
+# session = Session()
 
 app = flask.Flask(__name__)
 app.config['DEBUG'] = True
@@ -11,6 +17,14 @@ Base = declarative_base()
 @app.route('/get')
 def index():
     return flask.json.dumps({'success': True})
+
+
+@app.route('/users')
+def get_all_users():
+    session = Session()
+    data = session.query(User).all()
+    session.close()
+    return data
 
 
 class User(Base):
