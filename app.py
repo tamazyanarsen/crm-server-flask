@@ -7,29 +7,28 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import bcrypt
+import flask_bcrypt
+import flask_jwt_extended
+from flask_sqlalchemy import SQLAlchemy
 import datetime
 
-print(datetime.datetime())
-exit()
-
-engine = create_engine('sqlite:///test.db', echo=True)
-Session = sessionmaker(bind=engine)
-# session = Session()
+# datetime.datetime.now().timestamp() текущая дата через float
 
 app = flask.Flask(__name__)
 app.config['DEBUG'] = True
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
 
-Base = declarative_base()
+db = SQLAlchemy(app)
 
 
-class User(Base):
+class User(db.Model):
     __tablename__ = 'users'
-    id = Column(String, primary_key=True)
-    email = Column(String)
-    password = Column(String)
-    name = Column(String, nullable=True)
-    fullname = Column(String, nullable=True)
-    nickname = Column(String, nullable=True)
+    id = db.Column(db.String, primary_key=True)
+    email = db.Column(db.String)
+    password = db.Column(db.String)
+    name = db.Column(db.String, nullable=True)
+    fullname = db.Column(db.String, nullable=True)
+    nickname = db.Column(db.String, nullable=True)
 
     def __init__(self, email, password, name=None, fullname=None, nickname=None):
         self.id = str(uuid.uuid4())
@@ -44,12 +43,12 @@ class User(Base):
             self.email, self.name, self.fullname, self.nickname)
 
 
-class Token(Base):
+class Token(db.Model):
     __tablename__ = 'tokens'
-    id = Column(String, primary_key=True)
-    token = Column(String)
-    created_at = Column(String)
-    token_live = Column(String)  # время жизни токена задаем в минутах
+    id = db.Column(db.String, primary_key=True)
+    token = db.Column(db.String)
+    created_at = db.Column(db.String)
+    token_live = db.Column(db.String)  # время жизни токена задаем в минутах
 
     def __init__(self, token):
         self.id = str(uuid.uuid4())
@@ -58,7 +57,7 @@ class Token(Base):
         return f'token=${self.token}'
 
 
-Base.metadata.create_all(engine)
+db.create_all()
 
 
 @app.route('/')
@@ -70,17 +69,15 @@ def index():
 def login():
     user_login = request.form['login']
     password = request.form['password']
-    session = Session()
-    user = session.query(User).filter(User.email == user_login).filter(
+    user = User.query.filter(User.email == user_login).filter(
         bcrypt.checkpw(password.encode('utf8'), User.password)).first()
-    session.close()
+    db.session.commit()
     return jsonify(user.id)
 
 
 @app.route('/users/<user_id>')
 def read_user(user_id):
-    session = Session()
-    return jsonify(session.query(User).filter(User.id == user_id))
+    return jsonify(User.query.filter(User.id == user_id))
 
 
 @app.route('/users/add', methods=['POST'])
@@ -88,20 +85,17 @@ def sign_up():
     email = request.form['email']
     password = request.form['password']
     user = User(email, password)
-    session = Session()
-    session.add(user)
-    session.commit()
-    session.close()
+    db.session.add(user)
+    db.session.commit()
     return jsonify(repr(user))
 
 
 @app.route('/users')
 def get_all_users():
-    session = Session()
-    data = list(map(repr, session.query(User).all()))
+    data = list(map(repr, User.query.all()))
     print(data)
-    session.close()
     return jsonify(data)
 
 
-app.run()
+if __name__ == '__main__':
+    app.run()
