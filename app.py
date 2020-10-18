@@ -95,7 +95,8 @@ def create():
     user = User(email, password)
     db.session.add(user)
     db.session.commit()
-    return jsonify(repr(user))
+    answer = jsonify(access_token=create_access_token(identity=user.id)), 200
+    return answer
 
 
 @app.route('/users')
