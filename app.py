@@ -8,7 +8,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import bcrypt
 import flask_bcrypt
-import flask_jwt_extended
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
 from flask_sqlalchemy import SQLAlchemy
 import datetime
 
@@ -17,7 +17,9 @@ import datetime
 app = flask.Flask(__name__)
 app.config['DEBUG'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///test.db'
+app.config['JWT_SECRET_KEY'] = str(datetime.datetime.now().timestamp())
 
+jwt = JWTManager(app)
 db = SQLAlchemy(app)
 
 
@@ -67,12 +69,18 @@ def index():
 
 @app.route('/users/login', methods=['POST'])
 def login():
-    user_login = request.form['login']
+    print(request, request.json)  # работает, если в Content-Type передавать application/json
+    email = request.form['email']
     password = request.form['password']
-    user = User.query.filter(User.email == user_login).filter(
-        bcrypt.checkpw(password.encode('utf8'), User.password)).first()
-    db.session.commit()
-    return jsonify(user.id)
+    print(bcrypt.hashpw(password.encode('utf8'), bcrypt.gensalt()))
+    user = User.query.filter(User.email == email).filter(
+        bcrypt.hashpw(password.encode('utf8'), bcrypt.gensalt()) == User.password).first()
+    if user:
+        access_token = create_access_token(identity=user.id)
+        answer = jsonify(access_token=access_token), 200
+    else:
+        answer = jsonify({'error': True, 'code': 400}), 400
+    return answer
 
 
 @app.route('/users/<user_id>')
@@ -80,8 +88,8 @@ def read_user(user_id):
     return jsonify(User.query.filter(User.id == user_id))
 
 
-@app.route('/users/add', methods=['POST'])
-def sign_up():
+@app.route('/users', methods=['POST'])
+def create():
     email = request.form['email']
     password = request.form['password']
     user = User(email, password)
