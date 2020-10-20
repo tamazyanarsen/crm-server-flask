@@ -1,10 +1,12 @@
 import Vue from 'vue'
 import App from './App.vue'
-import Element from 'element-ui'
+import vuetify from './plugins/vuetify';
+import router from './plugins/router';
 
 Vue.config.productionTip = false
-Vue.use(Element)
 
 new Vue({
-  render: h => h(App),
+  vuetify,
+  router,
+  render: h => h(App)
 }).$mount('#app')
